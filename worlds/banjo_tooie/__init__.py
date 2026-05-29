@@ -30,17 +30,14 @@ from .Names import itemName, locationName, regionName
 from .WorldOrder import randomize_world_progression
 from BaseClasses import CollectionState, ItemClassification, Location, MultiWorld, Tutorial, Item
 from worlds.AutoWorld import World, WebWorld
-from worlds.LauncherComponents import Component, icon_paths, components, Type, launch_subprocess
+from .client.signature import validate_bt_signature
+from .client.emu_handler import BanjoTooieEmuHandler
 
+# The Banjo-Tooie client is now provided by the shared "EmuLoader Client" (worlds/EmuLoader).
+# This world advertises its handler + ROM validator (see BanjoTooieWorld.n64_client_handler /
+# n64_validation_function) and the EmuLoader client discovers and drives it at runtime; no
+# standalone "Banjo-Tooie Client" launcher component is registered anymore.
 
-def run_client():
-    from .BTClient import main  # lazy import
-    launch_subprocess(main)
-
-
-components.append(Component("Banjo-Tooie Client", func=run_client, component_type=Type.CLIENT,
-                            icon='Jinjo Icon'))
-icon_paths['Jinjo Icon'] = "ap:worlds.banjo_tooie/assets/icon.png"
 
 class BanjoTooieSettings(settings.Group):
     class RomPath(settings.OptionalUserFilePath):
@@ -97,6 +94,10 @@ class BanjoTooieWorld(World):
     """
 
     game = "Banjo-Tooie"
+    # EmuLoader client integration: expose ROM identification + the per-game client handler so the
+    # shared "EmuLoader Client" can detect Banjo-Tooie in emulator RAM and drive its sync loop.
+    n64_validation_function = staticmethod(validate_bt_signature)
+    n64_client_handler = BanjoTooieEmuHandler
     options: BanjoTooieOptions
     settings: typing.ClassVar[BanjoTooieSettings]
     settings_key = "banjo_tooie_options"

@@ -10,7 +10,9 @@ from typing import TYPE_CHECKING, Dict, Optional
 from . import addresses
 
 if TYPE_CHECKING:
-    from ..BTClient import BTEmuLoaderClient
+    # The "loader" is the ctx memory adapter provided by the EmuLoader client handler; it exposes
+    # the same read/write + pointer-chase interface the old BTEmuLoaderClient did.
+    from .emu_handler import _CtxMemoryAdapter as BTEmuLoaderClient
 
 ANCHOR_VERSION = 0x00
 ANCHOR_PC = 0x04

@@ -13,13 +13,6 @@ from Utils import async_start
 from . import BanjoTooieWorld
 from .client import state as emu_state, game as emu_game, addresses as emu_addresses
 
-# For when its a global package
-try:
-    from emu_loader import EmuLoaderClient, ProcessMemory
-# For when its in the apworld itself
-except ImportError:
-    from .emu_loader import EmuLoaderClient, ProcessMemory
-
 if TYPE_CHECKING:
     from kvui import UILog
 
@@ -49,58 +42,12 @@ def is_rdram_pointer(value: int) -> bool:
     return RDRAM_BASE <= value < RDRAM_BASE + RDRAM_SIZE
 
 
-class BTEmuLoaderClient(EmuLoaderClient):
-    """EmuLoaderClient with BTHACK pointer-chase helpers."""
-
-    def __init__(self) -> None:
-        super().__init__(validation_func= validate_bt_signature)
-
-    def deref(self, address: int) -> int | None:
-        ptr = self.read_u32(address)
-        return ptr & 0x7FFFFFFF if is_rdram_pointer(ptr) else None
-
-    def get_anchor(self) -> int | None:
-        return self.deref(RDRAM_BASE + BTHACK_ANCHOR_OFFSET)
-
-    def get_rom_version(self) -> tuple[int, int, int] | None:
-        anchor = self.get_anchor()
-        if anchor is None:
-            return None
-        major = self.read_u16(RDRAM_BASE + anchor + 0x0)
-        minor = self.read_u8(RDRAM_BASE + anchor + 0x2)
-        patch = self.read_u8(RDRAM_BASE + anchor + 0x3)
-        return (major, minor, patch)
-
-
-def validate_bt_signature(pm: ProcessMemory, rdram_base: int) -> bool:
-    """Return True if ``rdram_base`` looks like AP-Banjo-Tooie RDRAM.
-
-    - u32 at ``rdram_base + 0x400000`` must be a valid 0x80xxxxxx pointer
-      (BTHACK's ``AP_MEMORY_PTR``).
-    - At the dereferenced ``ap_memory_ptr_t`` struct, all 12 sub-pointers
-      at offsets 0x04..0x30 must themselves be valid RDRAM pointers. The
-      patch's ``inject_hooks()`` populates every one of them at game boot.
-    """
-    try:
-        anchor = int.from_bytes(
-            pm.read_bytes(rdram_base + BTHACK_ANCHOR_OFFSET, 4), "little"
-        )
-    except Exception:
-        return False
-    if not is_rdram_pointer(anchor):
-        return False
-    physical = anchor & 0x7FFFFFFF
-    if physical + BTHACK_STRUCT_SIZE > RDRAM_SIZE:
-        return False
-    try:
-        struct_bytes = pm.read_bytes(rdram_base + physical, BTHACK_STRUCT_SIZE)
-    except Exception:
-        return False
-    for offset in BTHACK_SUB_POINTER_OFFSETS:
-        sub_ptr = int.from_bytes(struct_bytes[offset : offset + 4], "little")
-        if not is_rdram_pointer(sub_ptr):
-            return False
-    return True
+# NOTE: this client is no longer launched directly. The world now plugs into the shared
+# "EmuLoader Client" via worlds/banjo_tooie/client/emu_handler.py (BanjoTooieEmuHandler) and
+# worlds/banjo_tooie/client/signature.py (validate_bt_signature). The CommonContext subclass and
+# transport tasks below are retained only as the source of the payload/patch helper functions the
+# handler imports (get_payload, parse_payload, patch_and_run, ...); the BanjoTooieContext /
+# *_task / main definitions are dead and can be pruned in a follow-up.
 
 SYSTEM_MESSAGE_ID = 0
 

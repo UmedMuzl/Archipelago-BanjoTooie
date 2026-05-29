@@ -13,7 +13,9 @@ from . import addresses
 from .state import BTHReader
 
 if TYPE_CHECKING:
-    from ..BTClient import BTEmuLoaderClient
+    # The "loader" is the ctx memory adapter provided by the EmuLoader client handler; it exposes
+    # the same read/write + pointer-chase interface the old BTEmuLoaderClient did.
+    from .emu_handler import _CtxMemoryAdapter as BTEmuLoaderClient
 
 # Settings struct field offsets
 SETTING_SEED = 0x00  # u32
